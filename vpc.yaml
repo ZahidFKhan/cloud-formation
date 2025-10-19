@@ -1,0 +1,127 @@
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Subnet Configuration"
+        Parameters:
+          - PublicSubnetAZ
+          - PrivateSubnetAZ
+    ParameterLabels:
+      PublicSubnetAZ:
+        default: "Public Subnet"
+      PrivateSubnetAZ:
+        default: "Private Subnet"
+
+
+Parameters:
+  PublicSubnetAZ:
+    Description: Enter deployment AZ for public subnet.
+      Default is ap-south-1a.
+    Type: String
+    Default: ap-south-1a
+    AllowedValues:
+      - ap-south-1a
+      - ap-south-1b
+      - ap-south-1c
+
+  PrivateSubnetAZ:
+    Description: Enter deployment AZ for private subnet.
+      Default is ap-south-1b.
+    Type: String
+    Default: ap-south-1b
+    AllowedValues:
+      - ap-south-1a
+      - ap-south-1b
+      - ap-south-1c
+
+Resources:
+  myVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: stack
+          Value: development
+
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Ref PublicSubnetAZ
+      Tags:
+        - Key: stack
+          Value: development
+        - Key: Name
+          Value: PublicSubnet-AZ1
+
+  PrivateSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Ref PrivateSubnetAZ
+      Tags:
+        - Key: stack
+          Value: development
+        - Key: Name
+          Value: PrivateSubnet-AZ2
+
+  #ROUTE TABLES
+  PublicSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: PublicSubnetRT
+
+
+  PrivateSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: PrivateSubnetRT
+
+  # Routes
+  MyRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: MappingOfInternetGatewayWithVPC
+    Properties:
+      RouteTableId:
+        Ref: PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: MyInternetGateway
+
+
+  # Subnet association
+  PublicRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PrivateRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      
+
+
+  MyInternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: myIG
+
+
+  MappingOfInternetGatewayWithVPC:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref MyInternetGateway
+      VpcId: !Ref myVPC

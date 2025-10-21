@@ -42,6 +42,8 @@ Resources:
       Tags:
         - Key: stack
           Value: development
+        - Key: Name
+          Value: myVPC
 
   PublicSubnet:
     Type: 'AWS::EC2::Subnet'
@@ -125,3 +127,35 @@ Resources:
     Properties:
       InternetGatewayId: !Ref MyInternetGateway
       VpcId: !Ref myVPC
+
+
+#VPC ENDPOINT SO WE CAN USE THE S3 WITHOUT Internet Gateway
+  VpcEndpointForS3UsingGateway:
+    Type: 'AWS::EC2::VPCEndpoint'
+    DependsOn: myVPC
+    Properties:
+      VpcEndpointType: 'Gateway'
+      VpcId: !Ref myVPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      RouteTableIds:
+        - !Ref PublicSubnetRouteTable
+        - !Ref PrivateSubnetRouteTable
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - 's3:GetObject'
+            Resource:
+              - !Sub 'arn:aws:s3:::${S3Bucket}'
+              - !Sub 'arn:aws:s3:::${S3Bucket}/*'
+      Tags:
+        - Key: Name
+          Value: S3VPCEndpoint
+
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+#    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${AWS::AccountId}-${AWS::Region}-bucket'
